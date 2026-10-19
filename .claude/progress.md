@@ -6,8 +6,8 @@ Execution order: A → B → C → D → E → F → G → H.
 
 ## A — Foundation
 - [x] 1.1 Workspace restructure (`8700a4a`)
-- [x] 1.2 Server skeleton (`GET /api/health`)
-- [ ] 1.3 Postgres + Prisma
+- [x] 1.2 Server skeleton (`4758dfe`)
+- [x] 1.3 Postgres + Prisma (`4758dfe`)
 - [ ] 1.4 Dev orchestration + proxy
 - [ ] 1.5 Test infrastructure
 
