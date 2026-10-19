@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "workspaces": [
-    "client"
+    "client",
+    "server"
   ],
   "engines": {
     "node": ">=20"
