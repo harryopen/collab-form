@@ -30,3 +30,4 @@ dist-ssr
 
 # Prisma generated client
 server/src/generated
+!.env.test

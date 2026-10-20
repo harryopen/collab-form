@@ -19,7 +19,7 @@ npm workspaces monorepo; Workspaces: `client/`, `server/` (`e2e/` comes later). 
 - `npm run lint` — ESLint in every workspace
 - Single workspace: `npm run <script> -w client`
 
-No test runner is configured yet.
+- `npm test -w server` — Vitest + Supertest against the `collabdocs_test` database (needs `docker compose up -d`); `test/global-setup.ts` runs `prisma migrate deploy` first, files run serially, `resetDb()` in `test/helpers.ts` truncates tables. Config in `server/.env.test` (committed). No client tests yet.
 
 ## Stack notes
 
