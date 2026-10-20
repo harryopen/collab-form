@@ -12,7 +12,8 @@ npm workspaces monorepo; Workspaces: `client/`, `server/` (`e2e/` comes later). 
 
 ## Commands (from the repo root)
 
-- `npm run dev -w client` / `npm run dev -w server` — Vite dev server (HMR) / `tsx watch` API on :4000 (root `npm run dev` still starts only the client until task 1.4)
+- `npm run dev` — starts server and client together (Vite proxies `/api` and `/socket.io` to :4000, so use http://localhost:5173)
+- `npm run dev -w client` / `npm run dev -w server` — Vite dev server (HMR) / `tsx watch` API on :4000
 - `docker compose up -d` — Postgres 17 (dev DB `collabdocs`, test DB `collabdocs_test`); `npm run db:migrate -w server` applies/creates Prisma migrations (client is generated on `npm install` into gitignored `server/src/generated`)
 - `npm run build` — type-check (`tsc -b`) then `vite build`, in every workspace
 - `npm run lint` — ESLint in every workspace

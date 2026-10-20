@@ -11,8 +11,11 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "npm run dev -w client",
+    "dev": "concurrently -k -n server,client -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6"
   }
 }
