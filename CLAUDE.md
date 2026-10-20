@@ -4,19 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-`collabdoc` is currently the unmodified Vite + React + TypeScript starter template (`src/App.tsx` is still the demo page, no routing, state management, backend, or collaboration code yet). Update this file as real architecture emerges.
+CollabDocs (Google Docs-style collaborative editor) is being built from the plan in `.claude/plan/implementation-plan.md`, with specs in `.claude/specs/`. Milestone order and task IDs live in the plan; check it before starting work. Task status lives in `.claude/progress.md`: after every commit, tick the completed task(s) there (with the commit hash) and include that update in the work. Done so far: 1.1 (Vite starter moved to `client/`, still the unmodified demo page) and 1.2 (`server/` Express + TS skeleton with `GET /api/health`). `e2e/` does not exist yet. Update this file as real architecture emerges (task 7.3).
 
-## Commands
+## Layout
 
-- `npm run dev` — start the Vite dev server (HMR)
-- `npm run build` — type-check (`tsc -b`) then `vite build`
-- `npm run lint` — ESLint over the whole repo
-- `npm run preview` — serve the production build
+npm workspaces monorepo; Workspaces: `client/`, `server/` (`e2e/` comes later). Server config is Zod-validated in `server/src/config/env.ts` and fails fast; copy `server/.env.example` to `server/.env`. `app.ts` is the Express factory (testable without listening); `index.ts` bootstraps the HTTP server. Run installs from the repo root.
 
-No test runner is configured. There is no git repository initialized.
+## Commands (from the repo root)
+
+- `npm run dev` — starts server and client together (Vite proxies `/api` and `/socket.io` to :4000, so use http://localhost:5173)
+- `npm run dev -w client` / `npm run dev -w server` — Vite dev server (HMR) / `tsx watch` API on :4000
+- `docker compose up -d` — Postgres 17 (dev DB `collabdocs`, test DB `collabdocs_test`); `npm run db:migrate -w server` applies/creates Prisma migrations (client is generated on `npm install` into gitignored `server/src/generated`)
+- `npm run build` — type-check (`tsc -b`) then `vite build`, in every workspace
+- `npm run lint` — ESLint in every workspace
+- Single workspace: `npm run <script> -w client`
+
+- `npm test -w server` — Vitest + Supertest against the `collabdocs_test` database (needs `docker compose up -d`); `test/global-setup.ts` runs `prisma migrate deploy` first, files run serially, `resetDb()` in `test/helpers.ts` truncates tables. Config in `server/.env.test` (committed). No client tests yet.
 
 ## Stack notes
 
 - React 19, TypeScript ~6.0, Vite 8 with `@vitejs/plugin-react` (Oxc-based; React Compiler is not enabled).
-- ESLint uses flat config (`eslint.config.js`) with `typescript-eslint`, `react-hooks`, and `react-refresh` plugins.
-- TypeScript is split into project references: `tsconfig.app.json` (code in `src/`) and `tsconfig.node.json` (Vite config), referenced from `tsconfig.json`. This is why `build` uses `tsc -b`.
+- ESLint uses flat config (`client/eslint.config.js`) with `typescript-eslint`, `react-hooks`, and `react-refresh` plugins.
+- TypeScript in `client/` is split into project references: `tsconfig.app.json` (code in `src/`) and `tsconfig.node.json` (Vite config), referenced from `tsconfig.json`. This is why `build` uses `tsc -b`.
+- Node >= 20 (`engines`); developed on Node 24.
+- `.env*` files are gitignored except `.env.example`.
