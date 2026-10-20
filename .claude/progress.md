@@ -9,7 +9,7 @@ Execution order: A → B → C → D → E → F → G → H.
 - [x] 1.2 Server skeleton (`4758dfe`)
 - [x] 1.3 Postgres + Prisma (`4758dfe`)
 - [x] 1.4 Dev orchestration + proxy (`152dd21`)
-- [ ] 1.5 Test infrastructure
+- [x] 1.5 Test infrastructure (`c9e9881`)
 
 ## B — Auth
 - [ ] 2.1 Server plumbing
