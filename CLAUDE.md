@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-CollabDocs (Google Docs-style collaborative editor) is being built from the plan in `.claude/plan/implementation-plan.md`, with specs in `.claude/specs/`. Milestone order and task IDs live in the plan; check it before starting work. Task status lives in `.claude/progress.md`: after every commit, tick the completed task(s) there (with the commit hash) and include that update in the work. Done so far: 1.1 (Vite starter moved to `client/`, still the unmodified demo page) and 1.2 (`server/` Express + TS skeleton with `GET /api/health`). `e2e/` does not exist yet. Update this file as real architecture emerges (task 7.3).
+CollabDocs (Google Docs-style collaborative editor) is being built from the plan in `.claude/plan/implementation-plan.md`, with specs in `.claude/specs/`. Milestone order and task IDs live in the plan; check it before starting work. Never commit until the user has verified the changes and says to commit (see README "Workflow rules"). Task status lives in `.claude/progress.md`: after every commit, tick the completed task(s) there (with the commit hash) and include that update in the work. Done so far: 1.1 (Vite starter moved to `client/`, still the unmodified demo page) and 1.2 (`server/` Express + TS skeleton with `GET /api/health`). `e2e/` does not exist yet. Update this file as real architecture emerges (task 7.3).
 
 ## Layout
 
