@@ -14,8 +14,8 @@ Execution order: A → B → C → D → E → F → G → H.
 ## B — Auth
 - [x] 2.1 Server plumbing (`c3b7fae`, merged in PR #2)
 - [x] 2.2 Auth routes (`832091b`, merged in PR #3)
-- [ ] 2.3 Client scaffolding (implemented, uncommitted, awaiting your verification)
-- [ ] 2.4 Login/Signup pages
+- [x] 2.3 Client scaffolding (`222c8e4`)
+- [ ] 2.4 Login/Signup pages (implemented, uncommitted, awaiting your verification)
 
 ## C — Documents
 - [ ] 3.3 Documents/members migration + `getRole`
