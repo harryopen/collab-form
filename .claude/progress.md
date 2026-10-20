@@ -12,8 +12,8 @@ Execution order: A → B → C → D → E → F → G → H.
 - [x] 1.5 Test infrastructure (`c9e9881`)
 
 ## B — Auth
-- [ ] 2.1 Server plumbing
-- [ ] 2.2 Auth routes
+- [x] 2.1 Server plumbing (`c3b7fae`, merged in PR #2)
+- [ ] 2.2 Auth routes (implemented, uncommitted, awaiting your verification)
 - [ ] 2.3 Client scaffolding
 - [ ] 2.4 Login/Signup pages
 
