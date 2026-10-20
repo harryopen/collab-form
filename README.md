@@ -1,3 +1,12 @@
+# CollabDocs
+
+## Workflow rules
+
+- **Do not commit until the changes have been verified by the project owner.** Implement the task, run lint/build/tests, then wait for the owner's go-ahead before committing.
+- After each commit, tick the task in `.claude/progress.md` with the commit hash.
+
+(The rest of this file is still the Vite template; it is replaced in task 7.3.)
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
