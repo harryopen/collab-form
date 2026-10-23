@@ -11,6 +11,7 @@ export type ErrorCode =
   | 'EMAIL_UNVERIFIED'
   | 'INVALID_CREDENTIALS'
   | 'USER_NOT_FOUND'
+  | 'ALREADY_MEMBER'
   | 'RATE_LIMITED'
   | 'INTERNAL_ERROR'
 

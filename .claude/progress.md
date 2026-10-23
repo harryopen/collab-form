@@ -18,8 +18,8 @@ Execution order: A → B → C → D → E → F → G → H.
 - [x] 2.4 Login/Signup pages (`fd545c6`)
 
 ## C — Documents
-- [ ] 3.3 Documents/members migration + `getRole` (implemented, uncommitted, awaiting your verification)
-- [ ] 3.4 Documents routes (implemented, uncommitted, awaiting your verification)
+- [x] 3.3 Documents/members migration + `getRole` (`8340310`)
+- [x] 3.4 Documents routes (`8340310`)
 - [ ] 4.1 Documents page
 - [ ] 4.2 Editor page shell
 
@@ -31,7 +31,7 @@ Execution order: A → B → C → D → E → F → G → H.
 - [ ] 5.5 Persistence end-to-end
 
 ## E — Sharing + enforcement
-- [ ] 3.5 Members routes
+- [ ] 3.5 Members routes (implemented, uncommitted, awaiting your verification)
 - [ ] 6.2 Share dialog
 - [ ] 6.3 Live permission changes
 - [ ] 6.1 Awareness + carets

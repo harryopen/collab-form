@@ -2,12 +2,15 @@ import { Router } from 'express'
 import { requireAuth } from '../../middleware/auth.js'
 import { requireRole } from '../../middleware/requireRole.js'
 import { validate } from '../../middleware/validate.js'
+import { createMembersRouter } from '../members/routes.js'
 import { createDocumentSchema, idParamsSchema, updateDocumentSchema } from './schemas.js'
 import { createDocument, deleteDocument, getDocument, listDocuments, updateDocument } from './service.js'
 
 export function createDocumentsRouter() {
   const router = Router()
   router.use(requireAuth)
+
+  router.use('/:id/members', createMembersRouter())
 
   router.get('/', async (req, res) => {
     res.json({ documents: await listDocuments(req.userId!) })
