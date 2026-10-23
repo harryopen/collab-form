@@ -8,13 +8,15 @@ datasource db {
 }
 
 model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  name         String
-  avatarUrl    String?
-  passwordHash String?
-  createdAt    DateTime      @default(now())
-  authAccounts AuthAccount[]
+  id             String           @id @default(uuid())
+  email          String           @unique
+  name           String
+  avatarUrl      String?
+  passwordHash   String?
+  createdAt      DateTime         @default(now())
+  authAccounts   AuthAccount[]
+  ownedDocuments Document[]
+  memberships    DocumentMember[]
 }
 
 model AuthAccount {
@@ -25,5 +27,41 @@ model AuthAccount {
   user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+enum ShareMode {
+  OFF
+  VIEWER
+  EDITOR
+}
+
+enum Role {
+  EDITOR
+  VIEWER
+}
+
+model Document {
+  id        String           @id @default(uuid())
+  ownerId   String
+  title     String           @default("Untitled document")
+  shareMode ShareMode        @default(OFF)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  owner     User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members   DocumentMember[]
+
+  @@index([ownerId])
+}
+
+// The owner is Document.ownerId, never a member row.
+model DocumentMember {
+  documentId String
+  userId     String
+  role       Role
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, userId])
   @@index([userId])
 }

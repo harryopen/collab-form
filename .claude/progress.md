@@ -18,8 +18,8 @@ Execution order: A → B → C → D → E → F → G → H.
 - [x] 2.4 Login/Signup pages (`fd545c6`)
 
 ## C — Documents
-- [ ] 3.3 Documents/members migration + `getRole`
-- [ ] 3.4 Documents routes
+- [ ] 3.3 Documents/members migration + `getRole` (implemented, uncommitted, awaiting your verification)
+- [ ] 3.4 Documents routes (implemented, uncommitted, awaiting your verification)
 - [ ] 4.1 Documents page
 - [ ] 4.2 Editor page shell
 
@@ -42,8 +42,8 @@ Execution order: A → B → C → D → E → F → G → H.
 
 ## G — Cuttable
 - [ ] 6.4 Share-link access
-- [ ] 3.1 Google OAuth routes (implemented with 3.2 logic, uncommitted, awaiting your verification; needs Google credentials for a live test)
-- [ ] 3.2 Account linking logic (implemented with 3.1, uncommitted, awaiting your verification)
+- [x] 3.1 Google OAuth routes (`4e78576`; live Google check still needs credentials in server/.env)
+- [x] 3.2 Account linking logic (`4e78576`)
 
 ## H — Docs
 - [ ] 7.3 README, `.env.example`, CLAUDE.md

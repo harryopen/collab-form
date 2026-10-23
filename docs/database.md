@@ -62,7 +62,7 @@ npx prisma generate                          # regenerate the client (run from s
 ```
 
 - Migration files in `server/prisma/migrations/` are committed.
-- The generated client goes to `server/src/generated/prisma` and is gitignored. A `postinstall` script regenerates it on `npm install`, so after changing the schema run `npx prisma generate` (done automatically by `db:migrate`).
+- The generated client goes to `server/src/generated/prisma` and is gitignored. A `postinstall` script regenerates it on `npm install`, so after changing the schema run `npx prisma generate` (`db:migrate` does not do this for you).
 
 ## Troubleshooting
 

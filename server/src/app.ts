@@ -6,6 +6,7 @@ import { csrfProtection } from './middleware/csrf.js'
 import { errorHandler, notFoundHandler } from './middleware/error.js'
 import type { ExchangeCode } from './modules/auth/google.js'
 import { createAuthRouter } from './modules/auth/routes.js'
+import { createDocumentsRouter } from './modules/documents/routes.js'
 
 export function createApp(options: { exchangeCode?: ExchangeCode } = {}) {
   const app = express()
@@ -25,6 +26,7 @@ export function createApp(options: { exchangeCode?: ExchangeCode } = {}) {
   })
 
   app.use('/api/auth', createAuthRouter(options))
+  app.use('/api/documents', createDocumentsRouter())
 
   app.use(notFoundHandler)
   app.use(errorHandler)
