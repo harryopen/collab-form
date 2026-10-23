@@ -7,6 +7,8 @@ export type ErrorCode =
   | 'FORBIDDEN'
   | 'NOT_FOUND'
   | 'EMAIL_TAKEN'
+  | 'ACCOUNT_EXISTS'
+  | 'EMAIL_UNVERIFIED'
   | 'INVALID_CREDENTIALS'
   | 'USER_NOT_FOUND'
   | 'RATE_LIMITED'

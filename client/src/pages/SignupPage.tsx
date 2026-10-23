@@ -2,7 +2,8 @@ import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { AuthLayout } from '../components/AuthLayout.tsx'
 import { TextField } from '../components/TextField.tsx'
-import { authErrorMessage } from '../auth/errorMessage.ts'
+import { GoogleButton } from '../components/GoogleButton.tsx'
+import { authErrorMessage, oauthErrorMessage } from '../auth/errorMessage.ts'
 import { safeNextPath } from '../auth/safeNext.ts'
 import { useAuth } from '../auth/useAuth.ts'
 
@@ -40,7 +41,7 @@ export function SignupPage() {
   return (
     <AuthLayout
       title="Create your account"
-      error={error}
+      error={error ?? oauthErrorMessage(params.get('error'))}
       footer={
         <>
           Already have an account? <Link to={loginLink}>Log in</Link>
@@ -63,6 +64,8 @@ export function SignupPage() {
           {submitting ? 'Creating account…' : 'Sign up'}
         </button>
       </form>
+      <p className="auth-divider">or</p>
+      <GoogleButton />
     </AuthLayout>
   )
 }

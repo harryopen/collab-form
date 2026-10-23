@@ -15,7 +15,7 @@ Execution order: A → B → C → D → E → F → G → H.
 - [x] 2.1 Server plumbing (`c3b7fae`, merged in PR #2)
 - [x] 2.2 Auth routes (`832091b`, merged in PR #3)
 - [x] 2.3 Client scaffolding (`222c8e4`)
-- [ ] 2.4 Login/Signup pages (implemented, uncommitted, awaiting your verification)
+- [x] 2.4 Login/Signup pages (`fd545c6`)
 
 ## C — Documents
 - [ ] 3.3 Documents/members migration + `getRole`
@@ -42,8 +42,8 @@ Execution order: A → B → C → D → E → F → G → H.
 
 ## G — Cuttable
 - [ ] 6.4 Share-link access
-- [ ] 3.1 Google OAuth routes
-- [ ] 3.2 Account linking logic
+- [ ] 3.1 Google OAuth routes (implemented with 3.2 logic, uncommitted, awaiting your verification; needs Google credentials for a live test)
+- [ ] 3.2 Account linking logic (implemented with 3.1, uncommitted, awaiting your verification)
 
 ## H — Docs
 - [ ] 7.3 README, `.env.example`, CLAUDE.md

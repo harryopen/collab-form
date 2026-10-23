@@ -84,3 +84,22 @@
 .auth-footer a {
   color: var(--accent);
 }
+
+.google-button {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-h);
+  text-align: center;
+  text-decoration: none;
+}
+
+.google-button:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+}
+
+.auth-divider {
+  text-align: center;
+  font-size: 14px;
+}

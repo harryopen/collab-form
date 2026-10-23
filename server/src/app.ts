@@ -4,9 +4,10 @@ import helmet from 'helmet'
 import { prisma } from './db/prisma.js'
 import { csrfProtection } from './middleware/csrf.js'
 import { errorHandler, notFoundHandler } from './middleware/error.js'
+import type { ExchangeCode } from './modules/auth/google.js'
 import { createAuthRouter } from './modules/auth/routes.js'
 
-export function createApp() {
+export function createApp(options: { exchangeCode?: ExchangeCode } = {}) {
   const app = express()
 
   app.use(helmet())
@@ -23,7 +24,7 @@ export function createApp() {
     }
   })
 
-  app.use('/api/auth', createAuthRouter())
+  app.use('/api/auth', createAuthRouter(options))
 
   app.use(notFoundHandler)
   app.use(errorHandler)
