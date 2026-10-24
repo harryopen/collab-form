@@ -21,7 +21,7 @@ Execution order: A → B → C → D → E → F → G → H.
 - [x] 3.3 Documents/members migration + `getRole` (`8340310`)
 - [x] 3.4 Documents routes (`8340310`)
 - [x] 4.1 Documents page (`68ce022`)
-- [ ] 4.2 Editor page shell
+- [x] 4.2 Editor page shell (`14fc930`)
 
 ## D — Collab slice
 - [ ] 5.1 Storage + compaction
