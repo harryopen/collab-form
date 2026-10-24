@@ -27,3 +27,7 @@ export async function renameDocument(id: string, title: string): Promise<Documen
 export function deleteDocument(id: string): Promise<void> {
   return http<void>(`/documents/${id}`, { method: 'DELETE' })
 }
+
+export async function fetchDocument(id: string): Promise<DocumentSummary> {
+  return (await http<{ document: DocumentSummary }>(`/documents/${id}`)).document
+}

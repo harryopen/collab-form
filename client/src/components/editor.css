@@ -1,0 +1,66 @@
+.editor {
+  margin: 0 auto;
+  width: 720px;
+  max-width: calc(100% - 32px);
+  padding: 32px 0;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.editor-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.editor-title {
+  width: 100%;
+  margin: 0;
+  font: inherit;
+  font-size: 32px;
+  font-weight: 500;
+  color: var(--text-h);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+}
+
+input.editor-title:hover {
+  border-color: var(--border);
+}
+
+input.editor-title:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.editor-note {
+  padding: 32px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+.editor .badge {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--text-h);
+  text-transform: capitalize;
+}
+
+.editor .form-error {
+  font-size: 14px;
+  color: #dc2626;
+}
