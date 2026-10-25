@@ -25,7 +25,7 @@ Execution order: A → B → C → D → E → F → G → H.
 
 ## D — Collab slice
 - [x] 5.1 Storage + compaction (`18b4cc5`)
-- [ ] 5.2 Registry
+- [x] 5.2 Registry (`7a61074`)
 - [ ] 5.3 Socket server
 - [ ] 5.4 Client provider + hook (includes 4.3 toolbar/editor)
 - [ ] 5.5 Persistence end-to-end
