@@ -3,11 +3,11 @@ import { Link, useParams } from 'react-router-dom'
 import { fetchDocument } from '../api/documents.ts'
 import { ApiError } from '../api/http.ts'
 import { authErrorMessage } from '../auth/errorMessage.ts'
+import { CollabEditor } from '../components/CollabEditor.tsx'
 import { TitleInput } from '../components/TitleInput.tsx'
 import '../components/editor.css'
 import { NotFoundPage } from './NotFoundPage.tsx'
 
-// Shell only: title and role. The collaborative editor itself arrives in task 5.4.
 export function EditorPage() {
   const { id = '' } = useParams()
   const doc = useQuery({
@@ -35,7 +35,7 @@ export function EditorPage() {
         <span className={`badge badge-${doc.data.role}`}>{doc.data.role}</span>
       </header>
       <TitleInput key={doc.data.title} doc={doc.data} />
-      <p className="editor-note">The editor arrives in a later task.</p>
+      <CollabEditor key={doc.data.id} documentId={doc.data.id} />
     </main>
   )
 }
