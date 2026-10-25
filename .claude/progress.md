@@ -32,7 +32,7 @@ Execution order: A → B → C → D → E → F → G → H.
 
 ## E — Sharing + enforcement
 - [x] 3.5 Members routes (`e1b55cd`)
-- [ ] 6.2 Share dialog
+- [x] 6.2 Share dialog (`8df1df9`)
 - [ ] 6.3 Live permission changes
 - [ ] 6.1 Awareness + carets
 
