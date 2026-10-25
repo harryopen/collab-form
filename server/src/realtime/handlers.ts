@@ -69,7 +69,7 @@ export function registerHandlers(io: Server, socket: Socket, deps: HandlerDeps) 
 
   // One socket's events are handled strictly in arrival order. Handlers await the database, and
   // concurrent ones could store and relay a client's updates out of order.
-  let queue: Promise<void> = Promise.resolve()
+  let queue: Promise<unknown> = Promise.resolve()
   const inOrder = (handler: (payload: unknown) => Promise<unknown>) => (payload: unknown) => {
     queue = queue.then(() => handler(payload)).catch(() => undefined)
   }

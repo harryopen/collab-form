@@ -435,3 +435,65 @@ describe('convergence', () => {
     expect(samples[Math.floor(samples.length * 0.95)]).toBeLessThan(300)
   })
 })
+
+describe('persistence end to end (5.5)', () => {
+  it('restores the content after the server restarts', async () => {
+    const { owner, doc } = await seed()
+    const a = await client(owner.id, doc.id)
+    await a.join()
+    a.text.insert(0, 'survives a restart')
+    await until(() => registry.get(doc.id)?.ydoc.getText('t').toString() === 'survives a restart')
+    await sleep(100) // let the insert land
+    a.socket.disconnect()
+    await until(() => registry.size() === 0)
+    await io.close()
+
+    // A brand-new server and registry: nothing in memory, only the database.
+    await startServer()
+    const b = await client(owner.id, doc.id)
+    await b.join()
+    expect(b.text.toString()).toBe('survives a restart')
+  })
+
+  it('restores content that was never compacted (server killed with clients attached)', async () => {
+    const { owner, doc } = await seed()
+    const a = await client(owner.id, doc.id)
+    await a.join()
+    for (const word of ['one ', 'two ', 'three']) a.text.insert(a.text.length, word)
+    await until(() => registry.get(doc.id)?.ydoc.getText('t').toString() === 'one two three')
+    await sleep(100)
+    expect(await storedRows()).toBeGreaterThan(0)
+
+    // Simulate a crash: the new server never saw the old registry, so nothing was compacted.
+    const crashed = io
+    await startServer()
+    const b = await client(owner.id, doc.id)
+    await b.join()
+    expect(b.text.toString()).toBe('one two three')
+    await crashed.close()
+  })
+
+  it('compacts after more than 200 updates: the update table shrinks and nothing is lost', async () => {
+    const { owner, doc } = await seed()
+    const a = await client(owner.id, doc.id)
+    await a.join()
+
+    const total = 250
+    for (let i = 0; i < total; i++) a.text.insert(a.text.length, 'x')
+    await until(() => registry.get(doc.id)?.ydoc.getText('t').length === total, 20_000)
+    // Compaction runs in the background once the threshold is crossed.
+    let rows = total
+    const start = Date.now()
+    while (rows >= total && Date.now() - start < 10_000) {
+      rows = await storedRows()
+      await sleep(50)
+    }
+    expect(rows).toBeLessThan(total)
+    expect(await prisma.documentSnapshot.count({ where: { documentId: doc.id } })).toBe(1)
+
+    // Snapshot plus the remaining rows still rebuild every character.
+    await sleep(200)
+    const { ydoc } = await loadDoc(doc.id)
+    expect(ydoc.getText('t').toString()).toBe('x'.repeat(total))
+  }, 30_000)
+})
