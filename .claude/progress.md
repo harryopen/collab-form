@@ -24,7 +24,7 @@ Execution order: A → B → C → D → E → F → G → H.
 - [x] 4.2 Editor page shell (`14fc930`)
 
 ## D — Collab slice
-- [ ] 5.1 Storage + compaction
+- [x] 5.1 Storage + compaction (`18b4cc5`)
 - [ ] 5.2 Registry
 - [ ] 5.3 Socket server
 - [ ] 5.4 Client provider + hook (includes 4.3 toolbar/editor)
