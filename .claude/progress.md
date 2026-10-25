@@ -28,7 +28,7 @@ Execution order: A → B → C → D → E → F → G → H.
 - [x] 5.2 Registry (`7a61074`)
 - [x] 5.3 Socket server (`f724655`)
 - [x] 5.4 Client provider + hook (includes 4.3 toolbar/editor) (`3e99502`)
-- [ ] 5.5 Persistence end-to-end
+- [x] 5.5 Persistence end-to-end (`225e0f2`)
 
 ## E — Sharing + enforcement
 - [x] 3.5 Members routes (`e1b55cd`)
