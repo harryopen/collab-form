@@ -43,6 +43,7 @@ export class SocketIOProvider {
   private readonly listeners = new Set<() => void>()
   private synced = false
   private rejoinTimer: ReturnType<typeof setTimeout> | undefined
+  private connectTimer: ReturnType<typeof setTimeout> | undefined
 
   readonly documentId: string
 
@@ -62,12 +63,19 @@ export class SocketIOProvider {
 
   // Safe to call again after disconnect(), which React strict mode does in development.
   connect() {
-    if (this.socket.active) return
+    if (this.socket.active || this.connectTimer) return
     this.set({ status: 'connecting', error: null })
-    this.socket.connect()
+    // Deferred one tick: if React unmounts straight away (strict mode's throwaway mount),
+    // disconnect() cancels this before a socket is ever opened.
+    this.connectTimer = setTimeout(() => {
+      this.connectTimer = undefined
+      this.socket.connect()
+    }, 0)
   }
 
   disconnect() {
+    clearTimeout(this.connectTimer)
+    this.connectTimer = undefined
     clearTimeout(this.rejoinTimer)
     if (this.socket.connected) this.socket.emit('doc:leave', { documentId: this.documentId })
     this.synced = false

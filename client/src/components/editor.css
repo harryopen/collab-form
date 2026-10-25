@@ -15,6 +15,12 @@
   align-items: center;
 }
 
+.editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .editor-title-wrap {
   display: flex;
   flex-direction: column;

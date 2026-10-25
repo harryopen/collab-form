@@ -24,6 +24,10 @@ export async function renameDocument(id: string, title: string): Promise<Documen
   return (await http<{ document: DocumentSummary }>(`/documents/${id}`, { method: 'PATCH', body: { title } })).document
 }
 
+export async function setShareMode(id: string, shareMode: DocumentSummary['shareMode']): Promise<DocumentSummary> {
+  return (await http<{ document: DocumentSummary }>(`/documents/${id}`, { method: 'PATCH', body: { shareMode } })).document
+}
+
 export function deleteDocument(id: string): Promise<void> {
   return http<void>(`/documents/${id}`, { method: 'DELETE' })
 }
