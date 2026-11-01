@@ -4,7 +4,7 @@ import { createExtensions } from './extensions.ts'
 import { SocketIOProvider } from './SocketIOProvider.ts'
 
 // One provider per mounted editor; the caller keys the component on the document id.
-export function useCollabEditor(documentId: string) {
+export function useCollabEditor(documentId: string, userName: string) {
   const [provider] = useState(() => new SocketIOProvider(documentId))
   const connection = useSyncExternalStore(provider.subscribe, provider.getState)
 
@@ -18,7 +18,7 @@ export function useCollabEditor(documentId: string) {
   const editable = connection.status === 'synced' && connection.role !== 'viewer'
 
   const editor = useEditor({
-    extensions: createExtensions(provider.doc),
+    extensions: createExtensions(provider, userName),
     editable: false,
   })
 

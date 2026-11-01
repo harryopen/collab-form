@@ -1,9 +1,14 @@
+import { Awareness, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness'
 import type * as Y from 'yjs'
 import * as persistence from './persistence.js'
 
 export interface DocEntry {
   documentId: string
   ydoc: Y.Doc
+  // Cursors and presence. Never persisted; the server stamps identity on everything in here.
+  awareness: Awareness
+  // Awareness client id -> the socket allowed to speak for it.
+  awarenessOwners: Map<number, string>
   sockets: Set<string>
   // Rows stored since the last snapshot; compaction fires when it reaches the threshold.
   pendingUpdates: number
@@ -20,6 +25,9 @@ export interface RegistryDeps {
   threshold: number
 }
 
+// Called for every awareness change, except for the socket that caused it (if any).
+export type AwarenessSink = (documentId: string, update: Uint8Array, exceptSocketId?: string) => void
+
 const defaults: RegistryDeps = {
   loadDoc: persistence.loadDoc,
   compact: persistence.compact,
@@ -30,6 +38,23 @@ const defaults: RegistryDeps = {
 export function createRegistry(overrides: Partial<RegistryDeps> = {}) {
   const deps = { ...defaults, ...overrides }
   const slots = new Map<string, Slot>()
+  let awarenessSink: AwarenessSink | undefined
+
+  function createEntry(documentId: string, ydoc: Y.Doc, updateCount: number): DocEntry {
+    const awareness = new Awareness(ydoc)
+    awareness.setLocalState(null) // the server itself is not a participant
+    const awarenessOwners = new Map<number, string>()
+    awareness.on(
+      'update',
+      ({ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] }, origin: unknown) => {
+        for (const id of removed) awarenessOwners.delete(id)
+        const changed = [...added, ...updated, ...removed]
+        if (changed.length === 0) return
+        awarenessSink?.(documentId, encodeAwarenessUpdate(awareness, changed), typeof origin === 'string' ? origin : undefined)
+      },
+    )
+    return { documentId, ydoc, awareness, awarenessOwners, sockets: new Set(), pendingUpdates: updateCount }
+  }
 
   // Concurrent first joins share one in-flight load.
   async function join(documentId: string, socketId: string): Promise<DocEntry> {
@@ -37,7 +62,7 @@ export function createRegistry(overrides: Partial<RegistryDeps> = {}) {
     if (!slot) {
       const created: Slot = {
         loading: deps.loadDoc(documentId).then(({ ydoc, updateCount }) => {
-          created.entry = { documentId, ydoc, sockets: new Set(), pendingUpdates: updateCount }
+          created.entry = createEntry(documentId, ydoc, updateCount)
           return created.entry
         }),
       }
@@ -77,6 +102,9 @@ export function createRegistry(overrides: Partial<RegistryDeps> = {}) {
     const entry = get(documentId)
     if (!entry) return
     entry.sockets.delete(socketId)
+    // Take this socket's cursors away so they do not linger for everyone else.
+    const cursors = [...entry.awarenessOwners].filter(([, owner]) => owner === socketId).map(([id]) => id)
+    if (cursors.length > 0) removeAwarenessStates(entry.awareness, cursors, socketId)
     if (entry.sockets.size > 0) return
     try {
       if (entry.pendingUpdates > 0) await deps.compact(documentId, entry.ydoc)
@@ -103,7 +131,11 @@ export function createRegistry(overrides: Partial<RegistryDeps> = {}) {
     return ids
   }
 
-  return { join, get, leave, evict, recordUpdate, size: () => slots.size }
+  function setAwarenessSink(sink: AwarenessSink) {
+    awarenessSink = sink
+  }
+
+  return { join, get, leave, evict, recordUpdate, setAwarenessSink, size: () => slots.size }
 }
 
 export type Registry = ReturnType<typeof createRegistry>

@@ -19,7 +19,7 @@ export function EditorPage() {
     // 404/403 are final answers, not worth retrying.
     retry: (count, err) => !(err instanceof ApiError && err.status < 500 && err.status !== 0) && count < 2,
   })
-
+  console.log("log doc",doc.data);
   if (doc.isPending) return <main className="editor"><p>Loading document…</p></main>
   if (doc.error instanceof ApiError && (doc.error.status === 404 || doc.error.status === 403)) return <NotFoundPage />
   if (doc.isError) {

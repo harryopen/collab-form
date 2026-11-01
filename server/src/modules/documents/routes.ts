@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { requireAuth } from '../../middleware/auth.js'
 import { requireRole } from '../../middleware/requireRole.js'
 import { validate } from '../../middleware/validate.js'
+import { dropDocument, reevaluateAccess } from '../../realtime/access.js'
 import { createMembersRouter } from '../members/routes.js'
 import { createDocumentSchema, idParamsSchema, updateDocumentSchema } from './schemas.js'
 import { createDocument, deleteDocument, getDocument, listDocuments, updateDocument } from './service.js'
@@ -29,11 +30,15 @@ export function createDocumentsRouter() {
     validate({ params: idParamsSchema, body: updateDocumentSchema }),
     requireRole('editor'),
     async (req, res) => {
-      res.json({ document: await updateDocument(req.params.id as string, req.role!, req.body) })
+      const document = await updateDocument(req.params.id as string, req.role!, req.body)
+      if (req.body.shareMode !== undefined) await reevaluateAccess(req.params.id as string)
+      res.json({ document })
     },
   )
 
   router.delete('/:id', validate({ params: idParamsSchema }), requireRole('owner'), async (req, res) => {
+    // Disconnect its sockets and drop the in-memory copy before the rows disappear.
+    await dropDocument(req.params.id as string)
     await deleteDocument(req.params.id as string)
     res.status(204).end()
   })

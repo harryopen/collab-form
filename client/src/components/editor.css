@@ -143,3 +143,71 @@ input.editor-title:focus-visible {
 .editor-surface .tiptap ul,
 .editor-surface .tiptap ol { padding-left: 24px; margin: 0 0 8px; }
 .editor-surface .tiptap a { color: var(--accent); text-decoration: underline; }
+
+.collab-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.presence {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.presence-avatar,
+.presence-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: -6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+}
+
+.presence-avatar:first-child { margin-left: 0; }
+.presence-more { color: var(--text-h); background: var(--accent-bg); }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Remote carets from the collaboration-caret extension. */
+.editor-surface .collaboration-carets__caret {
+  position: relative;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 1px solid;
+  border-right: 1px solid;
+  word-break: normal;
+  pointer-events: none;
+}
+
+.editor-surface .collaboration-carets__label {
+  position: absolute;
+  top: -1.4em;
+  left: -1px;
+  padding: 0.1rem 0.4rem;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: normal;
+  color: #fff;
+  white-space: nowrap;
+  border-radius: 3px 3px 3px 0;
+  user-select: none;
+  pointer-events: none;
+}
