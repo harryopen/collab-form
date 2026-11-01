@@ -1,8 +1,8 @@
 import { prisma } from '../src/db/prisma.js'
 import { createApp } from '../src/app.js'
 
-export function createTestApp() {
-  return createApp()
+export function createTestApp(options: Parameters<typeof createApp>[0] = {}) {
+  return createApp(options)
 }
 
 // Empties every table except Prisma's migration history.

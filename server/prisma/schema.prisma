@@ -8,13 +8,15 @@ datasource db {
 }
 
 model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  name         String
-  avatarUrl    String?
-  passwordHash String?
-  createdAt    DateTime      @default(now())
-  authAccounts AuthAccount[]
+  id             String           @id @default(uuid())
+  email          String           @unique
+  name           String
+  avatarUrl      String?
+  passwordHash   String?
+  createdAt      DateTime         @default(now())
+  authAccounts   AuthAccount[]
+  ownedDocuments Document[]
+  memberships    DocumentMember[]
 }
 
 model AuthAccount {
@@ -26,4 +28,61 @@ model AuthAccount {
 
   @@unique([provider, providerAccountId])
   @@index([userId])
+}
+
+enum ShareMode {
+  OFF
+  VIEWER
+  EDITOR
+}
+
+enum Role {
+  EDITOR
+  VIEWER
+}
+
+model Document {
+  id        String            @id @default(uuid())
+  ownerId   String
+  title     String            @default("Untitled document")
+  shareMode ShareMode         @default(OFF)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  owner     User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members   DocumentMember[]
+  snapshot  DocumentSnapshot?
+  updates   DocumentUpdate[]
+
+  @@index([ownerId])
+}
+
+// The owner is Document.ownerId, never a member row.
+model DocumentMember {
+  documentId String
+  userId     String
+  role       Role
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, userId])
+  @@index([userId])
+}
+
+// One current compacted state per document (see realtime/persistence.ts).
+model DocumentSnapshot {
+  documentId String   @id
+  state      Bytes
+  updatedAt  DateTime @updatedAt
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+// Append-only Yjs updates made since the snapshot, folded in by compaction.
+model DocumentUpdate {
+  id         Int      @id @default(autoincrement())
+  documentId String
+  data       Bytes
+  createdAt  DateTime @default(now())
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, id])
 }
