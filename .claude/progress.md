@@ -34,7 +34,7 @@ Execution order: A → B → C → D → E → F → G → H.
 - [x] 3.5 Members routes (`e1b55cd`)
 - [x] 6.2 Share dialog (`8df1df9`)
 - [x] 6.3 Live permission changes (`014677d`)
-- [ ] 6.1 Awareness + carets
+- [x] 6.1 Awareness + carets (`31174d1`)
 
 ## F — Hardening
 - [ ] 7.2 Gap fill + security/acceptance tests
