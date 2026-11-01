@@ -5,12 +5,15 @@ import request from 'supertest'
 import { io as connect, type Socket } from 'socket.io-client'
 import type { Server } from 'socket.io'
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
+import * as encoding from 'lib0/encoding'
+import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness'
 import * as Y from 'yjs'
 import { createApp } from '../src/app.js'
 import { env } from '../src/config/env.js'
 import { prisma } from '../src/db/prisma.js'
 import { signSession } from '../src/modules/auth/session.js'
 import type { HandlerDeps } from '../src/realtime/handlers.js'
+import { colorFor } from '../src/realtime/colors.js'
 import { loadDoc } from '../src/realtime/persistence.js'
 import { createRegistry } from '../src/realtime/registry.js'
 import { createSocketServer } from '../src/realtime/socket.js'
@@ -38,7 +41,10 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  for (const c of clients.splice(0)) c.socket.disconnect()
+  for (const c of clients.splice(0)) {
+    c.socket.disconnect()
+    c.destroy()
+  }
   // Disconnects trigger compaction; let it finish so it cannot collide with the next resetDb().
   await until(() => registry.size() === 0).catch(() => undefined)
   await io.close()
@@ -66,12 +72,20 @@ class TestClient {
   ydoc = new Y.Doc()
   errors: DocError[] = []
   permissions: { role: string | null }[] = []
+  // Presence as this client sees it, built from the doc:awareness messages it receives.
+  seen = new Awareness(new Y.Doc())
+  awarenessMessages = 0
+  private senders = new Map<number, Awareness>()
   received: Uint8Array[] = []
   role: string | null = null
   synced = false
 
   constructor(readonly socket: Socket, readonly documentId: string) {
     socket.on('doc:error', (e: DocError) => this.errors.push(e))
+    socket.on('doc:awareness', (msg: { update: Uint8Array }) => {
+      this.awarenessMessages += 1
+      applyAwarenessUpdate(this.seen, msg.update, 'remote')
+    })
     socket.on('doc:permission-changed', (p: { role: string | null }) => this.permissions.push(p))
     socket.on('doc:sync', (msg: { update: Uint8Array; stateVector: Uint8Array; role: string }) => {
       Y.applyUpdate(this.ydoc, msg.update, 'remote')
@@ -89,6 +103,28 @@ class TestClient {
     this.ydoc.on('update', (update: Uint8Array, origin: unknown) => {
       if (origin !== 'remote' && this.synced) socket.emit('doc:update', { documentId, update })
     })
+  }
+
+  // Sends a presence update as a (possibly hostile) client would, under the given client id.
+  sendAwareness(state: unknown, clientID?: number): number {
+    const doc = new Y.Doc()
+    if (clientID !== undefined) doc.clientID = clientID
+    let sender = this.senders.get(doc.clientID)
+    if (!sender) {
+      sender = new Awareness(doc)
+      this.senders.set(doc.clientID, sender)
+    }
+    sender.setLocalState(state as object | null)
+    this.socket.emit('doc:awareness', {
+      documentId: this.documentId,
+      update: encodeAwarenessUpdate(sender, [sender.clientID]),
+    })
+    return sender.clientID
+  }
+
+  destroy() {
+    this.seen.destroy()
+    this.senders.forEach((sender) => sender.destroy())
   }
 
   get text() {
@@ -606,5 +642,147 @@ describe('live permission changes (6.3)', () => {
     // The viewer never sends anything, yet the server hangs up once the token expires.
     await until(() => !c.socket.connected, 3000)
     expect(c.errors.some((e) => e.code === 'UNAUTHENTICATED')).toBe(true)
+  })
+})
+
+describe('awareness (6.1)', () => {
+  const states = (c: TestClient) => c.seen.getStates()
+
+  it('relays presence with the identity stamped by the server, ignoring what the client claimed', async () => {
+    const { owner, editor, doc } = await seed()
+    const a = await client(owner.id, doc.id)
+    const b = await client(editor.id, doc.id)
+    await Promise.all([a.join(), b.join()])
+
+    const id = a.sendAwareness({
+      user: { name: 'Totally The Admin', color: '#000000', id: 'someone-else' },
+      cursor: { anchor: 1, head: 2 },
+      evil: '<script>',
+    })
+    await until(() => states(b).has(id))
+
+    expect(states(b).get(id)).toEqual({
+      user: { id: owner.id, name: 'owner', color: colorFor(owner.id) },
+      cursor: { anchor: 1, head: 2 },
+    })
+  })
+
+  it('does not send a socket its own presence back', async () => {
+    const { owner, editor, doc } = await seed()
+    const a = await client(owner.id, doc.id)
+    const b = await client(editor.id, doc.id)
+    await Promise.all([a.join(), b.join()])
+    a.sendAwareness({ cursor: null })
+    await until(() => b.awarenessMessages > 0)
+    await sleep(100)
+    expect(a.awarenessMessages).toBe(0)
+  })
+
+  it('shows existing cursors to someone who joins later', async () => {
+    const { owner, editor, doc } = await seed()
+    const a = await client(owner.id, doc.id)
+    await a.join()
+    const id = a.sendAwareness({ cursor: null })
+    await until(() => registry.get(doc.id)?.awareness.getStates().has(id) === true)
+
+    const b = await client(editor.id, doc.id)
+    await b.join()
+    await until(() => states(b).has(id))
+    expect(states(b).get(id)?.user).toMatchObject({ id: owner.id, name: 'owner' })
+  })
+
+  it('lets viewers show their cursor (D8) while still refusing their edits', async () => {
+    const { owner, viewer, doc } = await seed()
+    const v = await client(viewer.id, doc.id)
+    const o = await client(owner.id, doc.id)
+    await Promise.all([v.join(), o.join()])
+    const id = v.sendAwareness({ cursor: null })
+    await until(() => states(o).has(id))
+    expect(states(o).get(id)?.user).toMatchObject({ id: viewer.id })
+  })
+
+  it('removes a cursor as soon as its tab disconnects', async () => {
+    const { owner, editor, doc } = await seed()
+    const a = await client(owner.id, doc.id)
+    const b = await client(editor.id, doc.id)
+    await Promise.all([a.join(), b.join()])
+    const id = a.sendAwareness({ cursor: null })
+    await until(() => states(b).has(id))
+
+    a.socket.disconnect()
+    await until(() => !states(b).has(id), 1000)
+  })
+
+  it('removes a cursor on doc:leave and when access is revoked', async () => {
+    const { owner, editor, viewer, doc } = await seed()
+    const o = await client(owner.id, doc.id)
+    const e = await client(editor.id, doc.id)
+    const v = await client(viewer.id, doc.id)
+    await Promise.all([o.join(), e.join(), v.join()])
+    const eId = e.sendAwareness({ cursor: null })
+    const vId = v.sendAwareness({ cursor: null })
+    await until(() => states(o).has(eId) && states(o).has(vId))
+
+    v.socket.emit('doc:leave', { documentId: doc.id })
+    await until(() => !states(o).has(vId), 1000)
+
+    await rest(owner.id).delete(`/api/documents/${doc.id}/members/${editor.id}`)
+    await until(() => !states(o).has(eId), 1000)
+  })
+
+  it('refuses to speak for a client id that belongs to another socket', async () => {
+    const { owner, editor, doc } = await seed()
+    const a = await client(owner.id, doc.id)
+    const b = await client(editor.id, doc.id)
+    await Promise.all([a.join(), b.join()])
+    const id = a.sendAwareness({ cursor: { anchor: 5, head: 5 } })
+    await until(() => states(b).has(id))
+
+    b.sendAwareness(null, id) // try to wipe A's cursor
+    b.sendAwareness({ cursor: { anchor: 0, head: 0 } }, id) // or move it
+    await until(() => b.errors.length === 2)
+    expect(b.errors.every((e) => e.code === 'VALIDATION_ERROR')).toBe(true)
+    await sleep(100)
+    expect(states(a).has(id)).toBe(false) // never delivered to the sender itself
+    expect(registry.get(doc.id)?.awareness.getStates().get(id)).toMatchObject({ cursor: { anchor: 5, head: 5 } })
+  })
+
+  it('rejects malformed, oversized and over-claiming awareness without crashing', async () => {
+    const { owner, doc } = await seed()
+    const c = await client(owner.id, doc.id)
+    await c.join()
+
+    const withState = (json: string) => {
+      const encoder = encoding.createEncoder()
+      encoding.writeVarUint(encoder, 1)
+      encoding.writeVarUint(encoder, 12345)
+      encoding.writeVarUint(encoder, 1)
+      encoding.writeVarString(encoder, json)
+      return encoding.toUint8Array(encoder)
+    }
+    const tooMany = encoding.createEncoder()
+    encoding.writeVarUint(tooMany, 100)
+    const bad = [
+      new Uint8Array([255, 255, 255, 255]),
+      new Uint8Array(),
+      encoding.toUint8Array(tooMany),
+      withState('not json'),
+      withState('42'), // a state must be an object or null
+      withState(JSON.stringify({ blob: 'x'.repeat(5000) })),
+      new Uint8Array(20_000),
+    ]
+    for (const update of bad) c.socket.emit('doc:awareness', { documentId: doc.id, update })
+    await until(() => c.errors.length === bad.length)
+    expect(c.errors.every((e) => e.code === 'VALIDATION_ERROR')).toBe(true)
+
+    // A socket may only control a handful of client ids.
+    const before = c.errors.length
+    for (let i = 0; i < 10; i++) c.sendAwareness({ cursor: null }, 1000 + i)
+    await until(() => c.errors.length > before)
+    expect(registry.get(doc.id)!.awarenessOwners.size).toBeLessThanOrEqual(8)
+
+    // And it is still healthy.
+    c.text.insert(0, 'ok')
+    await until(() => registry.get(doc.id)?.ydoc.getText('t').toString() === 'ok')
   })
 })

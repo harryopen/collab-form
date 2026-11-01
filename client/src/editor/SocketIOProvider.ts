@@ -1,8 +1,16 @@
 import { io, type Socket } from 'socket.io-client'
+import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness'
 import * as Y from 'yjs'
 import type { DocumentRole } from '../api/documents.ts'
 
 export type ConnectionStatus = 'connecting' | 'syncing' | 'synced' | 'offline' | 'error'
+
+// Someone else in the document, as stamped by the server.
+export interface Peer {
+  id: string
+  name: string
+  color: string
+}
 
 export interface ProviderState {
   status: ConnectionStatus
@@ -11,6 +19,8 @@ export interface ProviderState {
   error: string | null
   // Set when the server removed our access; the page should leave the document.
   revoked: boolean
+  // Other people here right now (one entry per person, however many tabs they have).
+  peers: Peer[]
 }
 
 // Socket.IO delivers binary payloads to the browser as ArrayBuffer (Node gets Buffer).
@@ -40,8 +50,10 @@ const REJOIN_DELAY_MS = 1000
 // a server restart and a dropped-from-room recovery all go through the same path.
 export class SocketIOProvider {
   readonly doc = new Y.Doc()
+  // Cursors and presence for the caret extension; the server stamps everyone's identity.
+  readonly awareness = new Awareness(this.doc)
   private readonly socket: Socket
-  private state: ProviderState = { status: 'connecting', role: null, error: null, revoked: false }
+  private state: ProviderState = { status: 'connecting', role: null, error: null, revoked: false, peers: [] }
   private readonly listeners = new Set<() => void>()
   private synced = false
   private rejoinTimer: ReturnType<typeof setTimeout> | undefined
@@ -61,6 +73,8 @@ export class SocketIOProvider {
     this.socket.on('doc:update', this.onRemoteUpdate)
     this.socket.on('doc:error', this.onDocError)
     this.socket.on('doc:permission-changed', this.onPermissionChanged)
+    this.socket.on('doc:awareness', this.onRemoteAwareness)
+    this.awareness.on('update', this.onAwarenessUpdate)
     this.doc.on('update', this.onLocalUpdate)
   }
 
@@ -113,6 +127,7 @@ export class SocketIOProvider {
     Y.applyUpdate(this.doc, toBytes(msg.update), this)
     this.synced = true
     this.set({ status: 'synced', role: msg.role })
+    this.sendOwnAwareness() // the server forgets us whenever we disconnect
     if (msg.role === 'viewer') return
     // Whatever the server lacks: edits made offline or while this join was in flight.
     const missing = Y.encodeStateAsUpdate(this.doc, toBytes(msg.stateVector))
@@ -131,6 +146,7 @@ export class SocketIOProvider {
 
   private onDisconnect = (reason: string) => {
     this.synced = false
+    this.dropRemoteAwareness()
     // 'io server disconnect' means the server hung up on purpose (e.g. the session expired),
     // and Socket.IO will not reconnect by itself.
     if (reason === 'io server disconnect') this.set({ status: 'error', error: 'Your session has ended. Sign in again.' })
@@ -149,11 +165,48 @@ export class SocketIOProvider {
     if (msg.documentId !== this.documentId) return
     if (msg.role === null) {
       this.synced = false
+      this.dropRemoteAwareness()
       this.set({ status: 'error', role: null, revoked: true, error: 'You no longer have access to this document.' })
       this.socket.disconnect()
       return
     }
     this.set({ role: msg.role })
+  }
+
+  private sendOwnAwareness() {
+    if (!this.synced || this.awareness.getLocalState() === null) return
+    this.socket.emit('doc:awareness', {
+      documentId: this.documentId,
+      update: encodeAwarenessUpdate(this.awareness, [this.awareness.clientID]),
+    })
+  }
+
+  // Our own cursor and name changes (origin 'local') go to the server; it relays them.
+  private onAwarenessUpdate = (_changes: unknown, origin: unknown) => {
+    if (origin === 'local') this.sendOwnAwareness()
+    this.refreshPeers()
+  }
+
+  private onRemoteAwareness = (msg: { documentId: string; update: Binary }) => {
+    if (msg.documentId === this.documentId) applyAwarenessUpdate(this.awareness, toBytes(msg.update), this)
+  }
+
+  // Without a connection nobody can tell us they left, so forget everyone else's cursor.
+  private dropRemoteAwareness() {
+    const others = [...this.awareness.getStates().keys()].filter((id) => id !== this.awareness.clientID)
+    if (others.length > 0) removeAwarenessStates(this.awareness, others, this)
+  }
+
+  private refreshPeers() {
+    const byPerson = new Map<string, Peer>()
+    for (const [clientId, state] of this.awareness.getStates()) {
+      const user = (state as { user?: Partial<Peer> }).user
+      if (clientId === this.awareness.clientID || !user?.id || !user.name) continue
+      byPerson.set(user.id, { id: user.id, name: user.name, color: user.color ?? '#888888' })
+    }
+    const peers = [...byPerson.values()].sort((a, b) => a.name.localeCompare(b.name))
+    // Awareness renews every few seconds; only tell React when the people actually changed.
+    if (JSON.stringify(peers) !== JSON.stringify(this.state.peers)) this.set({ peers })
   }
 
   private onDocError = (err: DocError) => {

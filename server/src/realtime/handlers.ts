@@ -1,7 +1,9 @@
 import type { Server, Socket } from 'socket.io'
+import { encodeAwarenessUpdate } from 'y-protocols/awareness'
 import * as Y from 'yjs'
 import { z } from 'zod'
 import { getRole, hasRole } from '../permissions/getRole.js'
+import { applyClientAwareness, MAX_AWARENESS_BYTES } from './awareness.js'
 import type { SocketData } from './handshake.js'
 import { appendUpdate } from './persistence.js'
 import type { Registry } from './registry.js'
@@ -31,7 +33,10 @@ const documentId = z.string().min(1).max(64)
 
 const joinSchema = z.object({ documentId, stateVector: bytes })
 const updateSchema = z.object({ documentId, update: bytes })
-const awarenessSchema = z.object({ documentId, update: bytes })
+const awarenessSchema = z.object({
+  documentId,
+  update: z.instanceof(Uint8Array).refine((b) => b.byteLength <= MAX_AWARENESS_BYTES, 'payload too large'),
+})
 const leaveSchema = z.object({ documentId })
 
 export const roomOf = (id: string) => `doc:${id}`
@@ -107,6 +112,13 @@ export function registerHandlers(io: Server, socket: Socket, deps: HandlerDeps) 
         stateVector: Y.encodeStateVector(entry.ydoc),
         role,
       })
+      const present = [...entry.awareness.getStates().keys()]
+      if (present.length > 0) {
+        socket.emit('doc:awareness', {
+          documentId: msg.documentId,
+          update: encodeAwarenessUpdate(entry.awareness, present),
+        })
+      }
     } catch {
       fail(msg.documentId, 'INTERNAL_ERROR', 'Could not join document')
     }
@@ -162,11 +174,17 @@ export function registerHandlers(io: Server, socket: Socket, deps: HandlerDeps) 
     }
   }))
 
-  // Placeholder until 6.1 adds server-side awareness: joined-only relay of the raw payload.
+  // Presence is allowed for viewers too (D8). The server rewrites identity (D19) and owns the
+  // fan-out: the registry broadcasts whatever changed in the document's awareness.
   socket.on('doc:awareness', (payload: unknown) => {
     const msg = parse(awarenessSchema, payload)
     if (!msg || !requireJoined(msg.documentId)) return
-    socket.to(roomOf(msg.documentId)).emit('doc:awareness', msg)
+    const entry = registry.get(msg.documentId)
+    if (!entry) return void fail(msg.documentId, 'NOT_JOINED', 'Join the document first')
+    const identity = { userId: data().userId, name: data().name }
+    if (!applyClientAwareness(entry, socket.id, identity, msg.update)) {
+      fail(msg.documentId, 'VALIDATION_ERROR', 'Invalid awareness update')
+    }
   })
 
   socket.on('doc:leave', inOrder(async (payload) => {

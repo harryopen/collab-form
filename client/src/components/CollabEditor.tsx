@@ -2,13 +2,16 @@ import { useQueryClient } from '@tanstack/react-query'
 import { EditorContent } from '@tiptap/react'
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/useAuth.ts'
 import { useCollabEditor } from '../editor/useCollabEditor.ts'
 import { ConnectionStatus } from './ConnectionStatus.tsx'
 import { EditorToolbar } from './EditorToolbar.tsx'
+import { PresenceBar } from './PresenceBar.tsx'
 
 // Mount with key={documentId}: each document gets its own provider and Y.Doc.
 export function CollabEditor({ documentId }: { documentId: string }) {
-  const { editor, connection } = useCollabEditor(documentId)
+  const { user } = useAuth()
+  const { editor, connection } = useCollabEditor(documentId, user?.name ?? 'Anonymous')
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
@@ -31,7 +34,10 @@ export function CollabEditor({ documentId }: { documentId: string }) {
 
   return (
     <section className="collab">
-      <ConnectionStatus connection={connection} />
+      <div className="collab-status">
+        <ConnectionStatus connection={connection} />
+        <PresenceBar peers={connection.peers} />
+      </div>
       {connection.error && <p role="alert" className="form-error">{connection.error}</p>}
       {editor && <EditorToolbar editor={editor} />}
       <EditorContent editor={editor} className="editor-surface" />

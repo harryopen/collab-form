@@ -7,6 +7,7 @@ import { SESSION_COOKIE, verifySession } from '../modules/auth/session.js'
 
 export interface SocketData {
   userId: string
+  name: string
   // Epoch ms when the session JWT expires; checked again on every update.
   expiresAt: number
 }
@@ -25,10 +26,10 @@ export async function authenticate(socket: Socket, next: (err?: Error) => void) 
     const session = token ? verifySession(token) : null
     if (!session) return next(new Error('UNAUTHENTICATED'))
 
-    const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { id: true } })
+    const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { id: true, name: true } })
     if (!user) return next(new Error('UNAUTHENTICATED'))
 
-    const data: SocketData = { userId: user.id, expiresAt: session.expiresAt }
+    const data: SocketData = { userId: user.id, name: user.name, expiresAt: session.expiresAt }
     Object.assign(socket.data, data)
     next()
   } catch {
