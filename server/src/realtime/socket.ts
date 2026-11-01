@@ -1,6 +1,7 @@
 import type { Server as HttpServer } from "node:http";
 import { Server } from "socket.io";
 import { getRole } from "../permissions/getRole.js";
+import { createAccess, setAccess } from "./access.js";
 import {
   MAX_HTTP_BUFFER_SIZE,
   registerHandlers,
@@ -20,6 +21,7 @@ export function createSocketServer(
     maxHttpBufferSize: MAX_HTTP_BUFFER_SIZE,
     allowRequest: (req, callback) => callback(null, isAllowedOrigin(req)),
   });
+  setAccess(createAccess(io, { registry: deps.registry, getRole: deps.getRole }))
   io.use(authenticate);
   io.on("connection", (socket) => {
     console.log("a user connected", socket.id);

@@ -9,6 +9,8 @@ export interface ProviderState {
   // Known after the first sync; the server decides it.
   role: DocumentRole | null
   error: string | null
+  // Set when the server removed our access; the page should leave the document.
+  revoked: boolean
 }
 
 // Socket.IO delivers binary payloads to the browser as ArrayBuffer (Node gets Buffer).
@@ -39,7 +41,7 @@ const REJOIN_DELAY_MS = 1000
 export class SocketIOProvider {
   readonly doc = new Y.Doc()
   private readonly socket: Socket
-  private state: ProviderState = { status: 'connecting', role: null, error: null }
+  private state: ProviderState = { status: 'connecting', role: null, error: null, revoked: false }
   private readonly listeners = new Set<() => void>()
   private synced = false
   private rejoinTimer: ReturnType<typeof setTimeout> | undefined
@@ -58,6 +60,7 @@ export class SocketIOProvider {
     this.socket.on('doc:sync', this.onSync)
     this.socket.on('doc:update', this.onRemoteUpdate)
     this.socket.on('doc:error', this.onDocError)
+    this.socket.on('doc:permission-changed', this.onPermissionChanged)
     this.doc.on('update', this.onLocalUpdate)
   }
 
@@ -138,6 +141,19 @@ export class SocketIOProvider {
     this.synced = false
     if (err.message === 'UNAUTHENTICATED') this.set({ status: 'error', error: 'Your session has ended. Sign in again.' })
     else this.set({ status: 'offline' })
+  }
+
+  // Membership or sharing changed while we are connected. The server enforces it on every
+  // update regardless; this just makes the UI follow immediately.
+  private onPermissionChanged = (msg: { documentId: string; role: DocumentRole | null }) => {
+    if (msg.documentId !== this.documentId) return
+    if (msg.role === null) {
+      this.synced = false
+      this.set({ status: 'error', role: null, revoked: true, error: 'You no longer have access to this document.' })
+      this.socket.disconnect()
+      return
+    }
+    this.set({ role: msg.role })
   }
 
   private onDocError = (err: DocError) => {

@@ -1,10 +1,12 @@
 import { createServer, type Server as HttpServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import jwt from 'jsonwebtoken'
+import request from 'supertest'
 import { io as connect, type Socket } from 'socket.io-client'
 import type { Server } from 'socket.io'
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
+import { createApp } from '../src/app.js'
 import { env } from '../src/config/env.js'
 import { prisma } from '../src/db/prisma.js'
 import { signSession } from '../src/modules/auth/session.js'
@@ -24,7 +26,7 @@ const clients: TestClient[] = []
 
 async function startServer(overrides: Partial<HandlerDeps> = {}) {
   registry = createRegistry()
-  httpServer = createServer()
+  httpServer = createServer(createApp())
   io = createSocketServer(httpServer, { registry, ...overrides })
   await new Promise<void>((resolve) => httpServer.listen(0, resolve))
   url = `http://localhost:${(httpServer.address() as AddressInfo).port}`
@@ -63,12 +65,14 @@ interface DocError {
 class TestClient {
   ydoc = new Y.Doc()
   errors: DocError[] = []
+  permissions: { role: string | null }[] = []
   received: Uint8Array[] = []
   role: string | null = null
   synced = false
 
   constructor(readonly socket: Socket, readonly documentId: string) {
     socket.on('doc:error', (e: DocError) => this.errors.push(e))
+    socket.on('doc:permission-changed', (p: { role: string | null }) => this.permissions.push(p))
     socket.on('doc:sync', (msg: { update: Uint8Array; stateVector: Uint8Array; role: string }) => {
       Y.applyUpdate(this.ydoc, msg.update, 'remote')
       this.role = msg.role
@@ -496,4 +500,111 @@ describe('persistence end to end (5.5)', () => {
     const { ydoc } = await loadDoc(doc.id)
     expect(ydoc.getText('t').toString()).toBe('x'.repeat(total))
   }, 30_000)
+})
+
+// REST calls through the same server, as the share dialog would make them.
+const rest = (userId: string) => ({
+  patch: (path: string, body: object) =>
+    request(url).patch(path).set('Origin', ORIGIN).set('Cookie', `session=${signSession(userId)}`).send(body),
+  delete: (path: string) =>
+    request(url).delete(path).set('Origin', ORIGIN).set('Cookie', `session=${signSession(userId)}`).send({}),
+})
+
+describe('live permission changes (6.3)', () => {
+  it('demoting an editor to viewer blocks their next update within 1 s and tells them', async () => {
+    const { owner, editor, doc } = await seed()
+    const e = await client(editor.id, doc.id)
+    const o = await client(owner.id, doc.id)
+    await Promise.all([e.join(), o.join()])
+    e.text.insert(0, 'before')
+    await until(() => o.text.toString() === 'before')
+
+    const start = Date.now()
+    expect((await rest(owner.id).patch(`/api/documents/${doc.id}/members/${editor.id}`, { role: 'VIEWER' })).status).toBe(200)
+    await until(() => e.permissions.some((p) => p.role === 'viewer'), 1000)
+    expect(Date.now() - start).toBeLessThan(1000)
+
+    e.text.insert(e.text.length, ' after')
+    await until(() => e.errors.some((x) => x.code === 'FORBIDDEN'), 1000)
+    await sleep(100)
+    expect(o.text.toString()).toBe('before')
+    expect((await loadDoc(doc.id)).ydoc.getText('t').toString()).toBe('before')
+  })
+
+  it('promoting a viewer lets them edit straight away', async () => {
+    const { owner, viewer, doc } = await seed()
+    const v = await client(viewer.id, doc.id)
+    const o = await client(owner.id, doc.id)
+    await Promise.all([v.join(), o.join()])
+
+    await rest(owner.id).patch(`/api/documents/${doc.id}/members/${viewer.id}`, { role: 'EDITOR' })
+    await until(() => v.permissions.some((p) => p.role === 'editor'), 1000)
+
+    v.text.insert(0, 'now allowed')
+    await until(() => o.text.toString() === 'now allowed')
+  })
+
+  it('removing a member takes their socket out of the room within 1 s', async () => {
+    const { owner, editor, doc } = await seed()
+    const e = await client(editor.id, doc.id)
+    const o = await client(owner.id, doc.id)
+    await Promise.all([e.join(), o.join()])
+
+    const start = Date.now()
+    expect((await rest(owner.id).delete(`/api/documents/${doc.id}/members/${editor.id}`)).status).toBe(204)
+    await until(() => e.permissions.some((p) => p.role === null), 1000)
+    expect(Date.now() - start).toBeLessThan(1000)
+    expect(registry.get(doc.id)?.sockets.has(e.socket.id as string)).toBe(false)
+
+    // No more broadcasts to the removed user, and their own writes go nowhere.
+    o.text.insert(0, 'secret')
+    await sleep(200)
+    expect(e.text.toString()).toBe('')
+    e.text.insert(0, 'let me in')
+    await until(() => e.errors.some((x) => x.code === 'NOT_JOINED'), 1000)
+    expect(o.text.toString()).toBe('secret')
+
+    // Re-joining is refused too.
+    e.socket.emit('doc:join', { documentId: doc.id, stateVector: new Uint8Array() })
+    await until(() => e.errors.some((x) => x.code === 'NOT_FOUND'), 1000)
+  })
+
+  it('changing the share mode re-checks sockets without disturbing members', async () => {
+    const { owner, editor, doc } = await seed()
+    const e = await client(editor.id, doc.id)
+    await e.join()
+    expect((await rest(owner.id).patch(`/api/documents/${doc.id}`, { shareMode: 'VIEWER' })).status).toBe(200)
+    await until(() => e.permissions.length > 0, 1000)
+    expect(e.permissions[0].role).toBe('editor')
+  })
+
+  it('deleting a document removes its sockets, drops the registry entry and leaves no rows', async () => {
+    const { owner, editor, doc } = await seed()
+    const e = await client(editor.id, doc.id)
+    const o = await client(owner.id, doc.id)
+    await Promise.all([e.join(), o.join()])
+    e.text.insert(0, 'doomed')
+    await until(() => o.text.toString() === 'doomed')
+
+    expect((await rest(owner.id).delete(`/api/documents/${doc.id}`)).status).toBe(204)
+    await until(() => e.permissions.some((p) => p.role === null) && o.permissions.some((p) => p.role === null), 1000)
+    expect(registry.get(doc.id)).toBeUndefined()
+    await sleep(100)
+    expect(await prisma.documentUpdate.count()).toBe(0)
+    expect(await prisma.documentSnapshot.count()).toBe(0)
+    expect(await prisma.document.count()).toBe(0)
+  })
+
+  it('drops an idle socket when its session expires', async () => {
+    const { viewer, doc } = await seed()
+    const token = jwt.sign({ sub: viewer.id }, env.JWT_SECRET, { algorithm: 'HS256', expiresIn: 1 })
+    const c = new TestClient(open(viewer.id, { token }), doc.id)
+    clients.push(c)
+    await new Promise((resolve) => c.socket.once('connect', resolve))
+    await c.join()
+
+    // The viewer never sends anything, yet the server hangs up once the token expires.
+    await until(() => !c.socket.connected, 3000)
+    expect(c.errors.some((e) => e.code === 'UNAUTHENTICATED')).toBe(true)
+  })
 })

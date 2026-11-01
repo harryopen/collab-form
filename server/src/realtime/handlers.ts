@@ -67,6 +67,13 @@ export function registerHandlers(io: Server, socket: Socket, deps: HandlerDeps) 
     return false
   }
 
+  // An idle socket (a viewer who never sends anything) must not outlive its session either.
+  const expiryTimer = setTimeout(() => {
+    fail(undefined, 'UNAUTHENTICATED', 'Session expired')
+    socket.disconnect(true)
+  }, Math.max(0, data().expiresAt - Date.now()))
+  socket.on('disconnect', () => clearTimeout(expiryTimer))
+
   // One socket's events are handled strictly in arrival order. Handlers await the database, and
   // concurrent ones could store and relay a client's updates out of order.
   let queue: Promise<unknown> = Promise.resolve()
